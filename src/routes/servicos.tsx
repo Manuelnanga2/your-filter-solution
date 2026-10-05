@@ -22,7 +22,7 @@ function Servicos() {
       <PageHero eyebrow="Serviços" title="Instalação e manutenção de filtros de água" text="Uma equipa técnica pronta para cuidar do seu sistema, do primeiro dia em diante." />
       <section className="mx-auto grid max-w-7xl gap-6 px-5 py-24 sm:grid-cols-2 lg:grid-cols-3">
         {services.map((s, i) => {
-          const I = icons[i];
+          const I = icons[i] ?? Wrench;
           return (
             <Reveal key={s.t} delay={i * 80} className="rounded-2xl border bg-card p-8 transition-shadow hover:shadow-soft">
               <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-brand text-primary-foreground"><I className="h-6 w-6" /></span>
