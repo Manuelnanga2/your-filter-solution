@@ -1,7 +1,9 @@
+
 import { useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { services, waLink } from "@/components/site";
+import { supabase } from "@/lib/supabase";
 
 const schema = z.object({
   nome: z.string().trim().min(2, "Indique o seu nome").max(100),
@@ -16,43 +18,126 @@ const field = "w-full rounded-xl border border-input bg-background px-4 py-3 out
 
 export function QuoteForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.currentTarget));
+
+    const form = e.currentTarget;
+    const data = Object.fromEntries(new FormData(form));
     const r = schema.safeParse(data);
+
     if (!r.success) {
-      setErrors(Object.fromEntries(r.error.issues.map((i) => [i.path[0], i.message])));
+      setErrors(
+        Object.fromEntries(
+          r.error.issues.map((i) => [String(i.path[0]), i.message])
+        )
+      );
       return;
     }
+
     setErrors({});
-    const d = r.data;
-    const text = `Pedido de orçamento — Meta Filtros\nNome: ${d.nome}\nTelefone: ${d.telefone}\nEmail: ${d.email}\nEndereço: ${d.endereco}\nServiço: ${d.servico}\nMensagem: ${d.mensagem || "-"}`;
-    window.open(waLink(text), "_blank", "noopener");
-    toast.success("Pedido preparado! Envie a mensagem no WhatsApp.");
-    e.currentTarget.reset();
+    setLoading(true);
+
+    try {
+      const d = r.data;
+
+      const { error } = await supabase
+        .from("orcamentos")
+        .insert({
+          nome: d.nome,
+          telefone: d.telefone,
+          email: d.email,
+          endereco: d.endereco,
+          servico: d.servico,
+          mensagem: d.mensagem || null,
+        });
+
+      if (error) {
+        console.error("Erro Supabase:", error);
+        toast.error("Não foi possível guardar o pedido. Tente novamente.");
+        return;
+      }
+
+      const text = `Pedido de orçamento — Meta Filtros
+Nome: ${d.nome}
+Telefone: ${d.telefone}
+Email: ${d.email}
+Endereço: ${d.endereco}
+Serviço: ${d.servico}
+Mensagem: ${d.mensagem || "-"}`;
+
+      window.open(waLink(text), "_blank", "noopener");
+
+      toast.success("Pedido guardado com sucesso!");
+      form.reset();
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Ocorreu um erro ao enviar o pedido.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const err = (k: string) => errors[k] && <p className="mt-1 text-sm text-destructive">{errors[k]}</p>;
+  const err = (k: string) =>
+    errors[k] && (
+      <p className="mt-1 text-sm text-destructive">{errors[k]}</p>
+    );
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-5 rounded-3xl border bg-card p-7 shadow-soft md:grid-cols-2 md:p-10" noValidate>
-      <div><label className="mb-1.5 block text-sm font-medium">Nome</label><input name="nome" className={field} maxLength={100} />{err("nome")}</div>
-      <div><label className="mb-1.5 block text-sm font-medium">Telefone</label><input name="telefone" type="tel" className={field} maxLength={20} placeholder="+244" />{err("telefone")}</div>
-      <div><label className="mb-1.5 block text-sm font-medium">Email</label><input name="email" type="email" className={field} maxLength={255} />{err("email")}</div>
-      <div><label className="mb-1.5 block text-sm font-medium">Endereço</label><input name="endereco" className={field} maxLength={200} placeholder="Bairro, município" />{err("endereco")}</div>
+    <form
+      onSubmit={onSubmit}
+      className="grid gap-5 rounded-3xl border bg-card p-7 shadow-soft md:grid-cols-2 md:p-10"
+      noValidate
+    >
+      <div>
+        <label className="mb-1.5 block text-sm font-medium">Nome</label>
+        <input name="nome" className={field} maxLength={100} />
+        {err("nome")}
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium">Telefone</label>
+        <input name="telefone" type="tel" className={field} maxLength={20} placeholder="+244" />
+        {err("telefone")}
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium">Email</label>
+        <input name="email" type="email" className={field} maxLength={255} />
+        {err("email")}
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium">Endereço</label>
+        <input name="endereco" className={field} maxLength={200} placeholder="Bairro, município" />
+        {err("endereco")}
+      </div>
+
       <div className="md:col-span-2">
         <label className="mb-1.5 block text-sm font-medium">Tipo de Serviço</label>
         <select name="servico" className={field} defaultValue="">
           <option value="" disabled>Selecione…</option>
-          {services.map((s) => <option key={s.t}>{s.t}</option>)}
+          {services.map((s) => (
+            <option key={s.t}>{s.t}</option>
+          ))}
           <option>Compra de produtos</option>
         </select>
         {err("servico")}
       </div>
-      <div className="md:col-span-2"><label className="mb-1.5 block text-sm font-medium">Mensagem</label><textarea name="mensagem" rows={5} className={field} maxLength={1000} /></div>
-      <button type="submit" className="rounded-full bg-gradient-brand px-8 py-4 font-semibold text-primary-foreground transition-transform hover:scale-[1.02] md:col-span-2">
-        Enviar pedido
+
+      <div className="md:col-span-2">
+        <label className="mb-1.5 block text-sm font-medium">Mensagem</label>
+        <textarea name="mensagem" rows={5} className={field} maxLength={1000} />
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="rounded-full bg-gradient-brand px-8 py-4 font-semibold text-primary-foreground transition-transform hover:scale-[1.02] disabled:opacity-50 md:col-span-2"
+      >
+        {loading ? "A enviar..." : "Enviar pedido"}
       </button>
     </form>
   );

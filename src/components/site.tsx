@@ -3,9 +3,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Menu, X, MessageCircle, Phone, Mail, MapPin, Facebook, Instagram, Linkedin } from "lucide-react";
 import logo from "@/assets/logo.png";
 
-export const WHATSAPP_NUMBER = "244900000000";
-export const PHONE_DISPLAY = "+244 900 000 000";
-export const EMAIL = "geral@metafiltros.ao";
+export const WHATSAPP_NUMBER = "244953936080";
+export const PHONE_DISPLAY = "+244 953 936 080";
+export const EMAIL = "matafiltros@gmail.com";
 export const waLink = (text = "Olá Meta Filtros, gostaria de mais informações.") =>
   `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
 
